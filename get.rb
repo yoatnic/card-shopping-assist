@@ -14,6 +14,7 @@ def get_doc(url)
   doc = Nokogiri::HTML.parse(html, nil, charset)
 end
 
+#価格情報を取得
 def find_price_link( doc )
   doc.css('p[@class="f9"]').each {|e|
     link = e.css('a')
