@@ -3,6 +3,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'kconv'
 
+# URLからHTMLを取得
 def get_doc(url)
   charset = nil
   html = open(url) do |f|
