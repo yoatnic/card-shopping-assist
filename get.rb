@@ -61,21 +61,21 @@ end
 #   {'rarerity' : レアリティ, 'shop-name' ： ショップ名, 'price' : 価格}
 #  ]
 # }
-def get_card_price_info(str)
-  cond = URI.escape(str.encode("Shift_JIS"))
+def get_card_price_info(card)
+  cond = URI.escape(card['card-name'].encode("Shift_JIS"))
   url = 'http://ocg.xpg.jp/search/search.fcgi?Name=' + cond + '&Mode=0&Code=%82%A0'
 
   # カード検索を実施
   doc = get_doc(url)
 
-  if (!doc) return nil end
+  return nil if (!doc)
 
   # カード名が複数ヒットした場合は、その中からカード名が完全一致するものを見つける
   if doc.xpath('//h1')[0].text.encode("Shift_JIS").include?( '検索結果'.encode("Shift_JIS", "UTF-8") )
-    doc = find_card_info str, doc
+    doc = find_card_info card['card-name'], doc
   end
   
-  if (!doc) return nil end
+  return nil if (!doc)
   
   # カード名の取得
   card_name = doc.xpath('//h1')[0].text.encode("Shift_JIS")
@@ -83,7 +83,7 @@ def get_card_price_info(str)
   # カードの価格情報のURLを取得
   price_info_url = find_price_link(doc);
   
-  if (!price_info_url) return nil end
+  return nil if (!price_info_url)
   
   price_info_url = 'http://ocg.xpg.jp' + find_price_link(doc)
   
@@ -103,15 +103,19 @@ def get_card_price_info(str)
   # カードの情報、各ショップの価格情報を抽出
   dst = {'card-name' => card_name.encode("UTF-8", "Shift_JIS"), 'price-data' => []}
 
-  if (!target.nil?) then
+  if (!target.nil?)
     i = 0
     td = target.css('td')
 
-    while (i < td.size - 4) 
-  	  dst['price-data'].push(
-        {'rarerity' => td[i + 1].to_s.encode("UTF-8", "Shift_JIS"),
-         'shop-name' => td[i + 2].to_s.encode("UTF-8", "Shift_JIS"),
-         'price' => td[i + 3].to_s.encode("UTF-8", "Shift_JIS")})
+    while (i < td.size - 4)
+      rarerity = td[i + 1].text.to_s.encode("UTF-8", "Shift_JIS")
+
+      if (card['rarerity'] == rarerity)
+        dst['price-data'].push(
+          {'rarerity' => rarerity,
+           'shop-name' => td[i + 2].text.to_s.encode("UTF-8", "Shift_JIS"),
+           'price' => td[i + 3].text.to_s.encode("UTF-8", "Shift_JIS")})
+      end
       i += 4
     end
   end
@@ -147,7 +151,7 @@ def disp_card_name( data )
   }
 end
 
-card_names = ['ワイト', 'Ｎｏ.３９ 希望皇ホープ']
+card_names = [{'card-name' => 'ワイト', 'rarerity' => 'Normal'}, {'card-name' => 'Ｎｏ.３９ 希望皇ホープ', 'rarerity' => 'Ultra'}]
 
 price_data =[]
 card_names.each {|e|
