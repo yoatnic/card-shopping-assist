@@ -10,13 +10,12 @@ require 'kconv'
 # @param[string] url HTMLを取得する対象のURL
 # @return HTMLのオブジェクト
 def get_doc(url)
-  charset = nil
-  html = open(url) do |f|
-    charset = f.charset
-    f.read
-  end
+  html_txt = open(url).read
+  html_txt_utf8 = html_txt.kconv(Kconv::UTF8, Kconv::SJIS)
 
-  doc = Nokogiri::HTML.parse(html, nil, charset)
+  doc = Nokogiri::HTML.parse(html_txt_utf8, nil, 'UTF-8')
+  
+  return doc
 end
 
 # 価格情報へのURLを取得
@@ -26,7 +25,7 @@ def find_price_link( doc )
   doc.css('p[@class="f9"]').each {|e|
     link = e.css('a')
     
-    if (link && link.text.encode("UTF-8") == '【省略された価格情報を表示】')
+    if (link && link.text == '【省略された価格情報を表示】')
       return link.attribute('href').to_s
     end
   }
@@ -40,7 +39,7 @@ end
 # @return カードページのURL
 def find_card_info(str, doc)
   doc.xpath('//td[@class="l w"]').each{|e|
-    if e.text.to_s.encode("UTF-8") == str
+    if e.text == str
       link = e.css('a')
       dst = get_doc('http://ocg.xpg.jp'+link.attribute('href').to_s)
       
@@ -71,14 +70,14 @@ def get_card_price_info(card)
   return nil if (!doc)
 
   # カード名が複数ヒットした場合は、その中からカード名が完全一致するものを見つける
-  if doc.xpath('//h1')[0].text.encode("Shift_JIS").include?( '検索結果'.encode("Shift_JIS", "UTF-8") )
+  if doc.xpath('//h1')[0].text.include?( '検索結果' )
     doc = find_card_info card['card-name'], doc
   end
   
   return nil if (!doc)
   
   # カード名の取得
-  card_name = doc.xpath('//h1')[0].text.encode("Shift_JIS")
+  card_name = doc.xpath('//h1')[0].text
 
   # カードの価格情報のURLを取得
   price_info_url = find_price_link(doc);
@@ -94,27 +93,33 @@ def get_card_price_info(card)
 
   # 価格情報ページから価格が掲載されている<table>を取得
   price_doc.xpath('//table[@class="jHover f9"]').each {|e|
-    if ( e.to_s.include?('情報取得日'.encode("Shift_JIS", "UTF-8")) ) then
+    if ( e.to_s.include?('情報取得日') ) then
       target = e
 	  break
     end
   }
 
   # カードの情報、各ショップの価格情報を抽出
-  dst = {'card-name' => card_name.encode("UTF-8", "Shift_JIS"), 'price-data' => []}
+  dst = {'card-name' => card_name, 'price-data' => []}
 
   if (!target.nil?)
     i = 0
     td = target.css('td')
 
     while (i < td.size - 4)
-      rarerity = td[i + 1].text.to_s.encode("UTF-8", "Shift_JIS")
+      rarerity = td[i + 1].text
 
       if (card['rarerity'] == rarerity)
-        dst['price-data'].push(
-          {'rarerity' => rarerity,
-           'shop-name' => td[i + 2].text.to_s.encode("UTF-8", "Shift_JIS"),
-           'price' => td[i + 3].text.to_s.encode("UTF-8", "Shift_JIS")})
+        shop_name = td[i + 2].css('a').text
+        if (!shop_name.empty?)
+          shop_url = td[i + 2].css('a').attribute('href')
+        
+          dst['price-data'].push(
+            {'rarerity' => rarerity,
+             'shop-name' => shop_name,
+             'shop-url' => shop_url,
+             'price' => td[i + 3].text})
+        end
       end
       i += 4
     end
@@ -149,6 +154,19 @@ def disp_card_name( data )
     puts '</table>'
     puts '</div>'
   }
+end
+
+def find_common_shop(card_data)
+  return nil if !card_data
+  
+  return card_data if card_data.size <= 1
+  
+  dst = []
+  
+  
+  
+  card_data
+  
 end
 
 card_names = [{'card-name' => 'ワイト', 'rarerity' => 'Normal'}, {'card-name' => 'Ｎｏ.３９ 希望皇ホープ', 'rarerity' => 'Ultra'}]
