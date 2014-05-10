@@ -128,6 +128,75 @@ def get_card_price_info(card)
   return dst
 end
 
+
+# カード情報からショップ名の配列を取得
+# @param card_info カード情報
+# @return[string] ショップ名のリスト
+def get_shop_names(card_info)
+  dst = []
+  card_info['price-data'].each {|data|
+    dst.push data['shop-name']
+  }
+  return dst
+end
+
+# 共通ショップの名称を抽出
+# @param カードの価格情報のリスト
+# @return[sting[]] 共通ショップ名称のリスト
+def get_common_shop_names(card_info_list)
+  if card_info_list.length < 2
+    return card_info_list
+  end
+  
+  dst = get_shop_names card_info_list[0]
+
+  card_info_list.slice(1, card_info_list.length - 1).each {|card|
+    dst = dst & get_shop_names( card )
+  }
+  
+  return dst
+end
+
+# カードの価格情報を第2引数のショップ名でフィルタリング
+# @param price_data カードの価格情報
+# @param[string[]] ショップ名のリスト
+# @param フィルタリングされたカードの価格情報
+def filter_price_data(price_data, shop_names)
+  dst = []
+  
+  price_data.each {|data|
+    shop_names.each {|shop_name|
+      if (data['shop-name'] == shop_name)
+        dst.push data
+        break
+      end
+    }
+  }
+  return dst
+end
+
+# 共通ショップを抽出
+# @param card_info_list カード情報のリスト
+# @return 共通ショップから成るカード情報のリスト
+def extract_common_shop(card_info_list)
+  if card_info_list.length < 2
+    return card_info_list
+  end
+  
+  common_shop = get_common_shop_names card_info_list
+
+  dst = []
+  
+  card_info_list.each {|card|
+    dst.push( {
+      'card-name' => card['card-name'],
+      'price-data' => filter_price_data(card['price-data'], common_shop)
+    })
+  }
+  
+  return dst
+end
+
 # 価格情報を整形して表示
 # @param[hash] data 表示するカードデータ
 def disp_card_name( data )
@@ -144,7 +213,7 @@ def disp_card_name( data )
       puts e['rarerity']
       puts '</td>'
       puts '<td>'
-      puts e['shop-name']
+      puts '<a href="' + e['shop-url'] + '">' + e['shop-name'] + '</a>'
       puts '</td>'
       puts '<td>'
       puts e['price']
@@ -156,25 +225,14 @@ def disp_card_name( data )
   }
 end
 
-def find_common_shop(card_data)
-  return nil if !card_data
-  
-  return card_data if card_data.size <= 1
-  
-  dst = []
-  
-  
-  
-  card_data
-  
-end
-
 card_names = [{'card-name' => 'ワイト', 'rarerity' => 'Normal'}, {'card-name' => 'Ｎｏ.３９ 希望皇ホープ', 'rarerity' => 'Ultra'}]
 
 price_data =[]
 card_names.each {|e|
   price_data.push get_card_price_info(e)
 }
+
+price_data = extract_common_shop price_data
 
 f = open(ARGV[0])
 f.each {|line| print line}
