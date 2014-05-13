@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # HTML取得用のライブラリ
 require 'uri'
 require 'open-uri'
@@ -162,17 +163,7 @@ end
 # @param[string[]] ショップ名のリスト
 # @param フィルタリングされたカードの価格情報
 def filter_price_data(price_data, shop_names)
-  dst = []
-  
-  price_data.each {|data|
-    shop_names.each {|shop_name|
-      if (data['shop-name'] == shop_name)
-        dst.push data
-        break
-      end
-    }
-  }
-  return dst
+  price_data.select{|h| shop_names.include?(h['shop-name'])}
 end
 
 # 共通ショップを抽出
