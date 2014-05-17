@@ -119,7 +119,7 @@ def get_card_price_info(card)
             {'rarerity' => rarerity,
              'shop-name' => shop_name,
              'shop-url' => shop_url,
-             'price' => td[i + 3].text})
+             'price' => td[i + 3].text.delete('円').delete(',').to_i})
         end
       end
       i += 4
@@ -188,6 +188,45 @@ def extract_common_shop(card_info_list)
   return dst
 end
 
+# カードの価格情報をショップ別にカテゴライズし、値段の合計が安い順にソート
+# @param card_info_list カード情報のリスト
+# @return ソート済みのショップ別価格情報
+def sort_card_price(card_info_list)
+  if !card_info_list || card_info_list.length == 0
+      return card_info_list
+  end
+  
+  shop_names = get_shop_names card_info_list[0]
+  
+  shop_price = {}
+  
+  card_info_list.each {|card|
+    card['price-data'].each {|e|
+      shop_names.each{|shop_name|
+        if (e['shop-name'] == shop_name)
+          if (!shop_price.key? shop_name)
+            shop_price[shop_name] = {
+              'shop-url' => e['shop-url'],
+              'card-data' => [],
+              'price-sum' => 0
+            }
+          end
+          shop_price[shop_name]['card-data'].push (
+            {
+              'card-name' => card['card-name'],
+              'price' => e['price'],
+              'rarerity' => e['rarerity'],
+            }
+          )
+          shop_price[shop_name]['price-sum'] = shop_price[shop_name]['price-sum'] + e['price']
+        end
+      }
+    }
+  }
+
+  return shop_price.sort_by{|key, val| val['price_sum']}
+end
+
 # 価格情報を整形して表示
 # @param[hash] data 表示するカードデータ
 def disp_card_name( data )
@@ -216,6 +255,54 @@ def disp_card_name( data )
   }
 end
 
+# 価格情報を整形して表示
+# @param price_data ショップ別にカテゴライズされた価格情報
+def disp_card_name_by_shop(price_data)
+  puts '<table>'
+  puts '<th>'
+  puts 'ショップ名'
+  puts '</th>'
+  
+  price_data.each{|shop|
+        
+    
+    shop[1]['card-data'].each{|card|
+      puts '<th style="width: 200px;word-break: break-all;">'
+      puts card['card-name']
+      puts '</th>'
+      puts '<th>'
+      puts 'レアリティ'
+      puts '</th>'
+    }
+    break
+  }
+  
+  puts '<th>'
+  puts '合計'
+  puts '</th>'
+
+  price_data.each{|shop|
+    puts '<tr>'
+    puts '<td>'
+    puts '<a href="' + shop[1]['shop-url'] + '">' + shop[0] + '</a>'
+    puts '</td>'
+    
+    shop[1]['card-data'].each{|card|
+      puts '<td>'
+      puts card['price'].to_s + '円'
+      puts '</td>'
+      puts '<td>'
+      puts card['rarerity']
+      puts '</td>'
+    }
+    puts '<td>'
+    puts shop[1]['price-sum'].to_s + '円'
+    puts '</td>'
+    puts '</tr>'
+  }
+  puts '</table>'
+end
+
 card_names = [{'card-name' => 'ワイト', 'rarerity' => 'Normal'}, {'card-name' => 'Ｎｏ.３９ 希望皇ホープ', 'rarerity' => 'Ultra'}]
 
 price_data =[]
@@ -225,11 +312,14 @@ card_names.each {|e|
 
 price_data = extract_common_shop price_data
 
+sorted_price = sort_card_price price_data
+
 f = open(ARGV[0])
 f.each {|line| print line}
 f.close
 
-disp_card_name price_data
+disp_card_name_by_shop sorted_price
+#disp_card_name price_data
 
 f = open(ARGV[1])
 f.each {|line| print line}
