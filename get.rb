@@ -224,7 +224,7 @@ def sort_card_price(card_info_list)
     }
   }
 
-  return shop_price.sort_by{|key, val| val['price_sum']}
+  return shop_price.to_a.sort{|x, y| x[1]['price-sum'] <=> y[1]['price-sum']}
 end
 
 # 価格情報を整形して表示
@@ -303,7 +303,17 @@ def disp_card_name_by_shop(price_data)
   puts '</table>'
 end
 
-card_names = [{'card-name' => 'ワイト', 'rarerity' => 'Normal'}, {'card-name' => 'Ｎｏ.３９ 希望皇ホープ', 'rarerity' => 'Ultra'}]
+card_names = []
+f = open('card-list.txt')
+f.each {|line|
+  if (line[0] != '#' && !line.strip.empty?)
+    card = line.split(',')
+    if (card.length == 2)
+      card_names.push( {'card-name' => card[0].strip, 'rarerity' => card[1].strip} )
+    end
+  end
+}
+f.close
 
 price_data =[]
 card_names.each {|e|
@@ -313,14 +323,13 @@ card_names.each {|e|
 price_data = extract_common_shop price_data
 
 sorted_price = sort_card_price price_data
-
-f = open(ARGV[0])
+f = open('html-tail.txt')
 f.each {|line| print line}
 f.close
 
 disp_card_name_by_shop sorted_price
 #disp_card_name price_data
 
-f = open(ARGV[1])
+f = open('html-head.txt')
 f.each {|line| print line}
 f.close
